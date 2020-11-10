@@ -1,0 +1,5 @@
+{
+    "m":"PUT",
+    "u":"https://webrelay.local/api/r{key}",
+    "p":"{\"s\":{value}}"
+}

@@ -1,0 +1,11 @@
+version: '3'
+services:
+
+    web:
+        image: nginx:1.19
+        volumes:
+            - ./html:/usr/share/nginx/html
+        ports:
+            - "8080:80"
+        environment:
+            - NGINX_PORT=80
