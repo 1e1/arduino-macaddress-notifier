@@ -17,7 +17,7 @@
 class Configuration {
 
   public:
-  typedef enum { S_fall=0, S_raise=1, S_change=-1 } StateDirection;
+  typedef enum { S_change=-1, S_fall=0, S_raise=1 } StateDirection;
 
   struct Acl {
     String username;

@@ -180,11 +180,9 @@ void setup()
 
 void startWiFi(void)
 {
+  WiFi.hostname(certificate::dname);
+
   if (!configuration->getGlobal()->acl.isSafeMode) {
-    /**
-     * set mode Home Assistant
-     * (Configuration*)
-     */
     BUSYLED_ON;
     LOGLN(PSTR("-- trying to connect to STA:"));
 
