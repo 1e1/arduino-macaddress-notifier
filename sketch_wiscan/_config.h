@@ -7,17 +7,7 @@
 
 // board metadata
 // =========================
-#define WM_PIN_SAFEMODE     D2 /* GPIO4 */
-#define WM_PIN_CONFIG       D1 /* GPIO5 */
-#define WS_RELAY_NB_MAX     32
-#define WS_LOG_LEVEL        WS_LOG_LEVEL_OFF
-// =========================
-
-
-// Serial conf
-// =========================
-// multiply by the clock divisor (ex:9600 baud at 2MHz instead of 16Mhz is 1200 baud)
-#define WS_SERIAL_SPEED     115200
+#define WS_LOG_LEVEL            WS_LOG_LEVEL_OFF
 // =========================
 
 

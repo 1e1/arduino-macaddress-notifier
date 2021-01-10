@@ -63,7 +63,7 @@ void setup()
   BUSYLED_ON;
   LOG_START();
   WAIT(1000);
-  LOGLN(PSTR("DEBUG ON"));
+  LOGLN(F("DEBUG ON"));
 
   LOG("reset reason: "); LOGLN(ESP.getResetReason());
   
@@ -84,14 +84,14 @@ void setup()
   LOG("isSafeMode="); LOGLN(isSafeMode);
   LOG("externalReset="); LOGLN(externalReset);
 
-  LOGLN(PSTR("-- load Configuration"));
+  LOGLN(F("-- load Configuration"));
   configuration->begin();
   configuration->setSafeMode(isSafeMode);
 
   if (isUnlocked || externalReset) {
     configuration->getGlobal()->acl.canAutoRestart = false;
   }
-  LOGLN(PSTR("---"));
+  LOGLN(F("---"));
 
   if (externalReset) {
     startWiFi();
@@ -100,19 +100,19 @@ void setup()
 
     // start portal
 
-    LOGLN(PSTR("-- setup WebServer"));
+    LOGLN(F("-- setup WebServer"));
     WebServer::setFs(LittleFS);
     WebServer::setAuthentication(configuration->getGlobal()->acl.username, configuration->getGlobal()->acl.password);
 
     server = new WebServer();
     server->begin();
 
-    LOGLN(PSTR("---"));
+    LOGLN(F("---"));
 
-    LOGLN(PSTR("-- setup mDNS"));
+    LOGLN(F("-- setup mDNS"));
     MDNS.begin(certificate::dname);
     MDNS.addService(WS_WEB_SERVER_SECURE == WS_WEB_SERVER_SECURE_YES ? "https" : "http", "tcp", WS_WEB_PORT);
-    LOGLN(PSTR("---"));
+    LOGLN(F("---"));
 
     BUSYLED_ON;
     // infinite loop
@@ -120,7 +120,7 @@ void setup()
       if (configuration->getGlobal()->acl.canAutoRestart) {
         if (WiFi.status() != WL_CONNECTED) {
           BUSYLED_OFF;
-          LOGLN(PSTR("** RESTART **"));
+          LOGLN(F("** RESTART **"));
 
           ESP.deepSleepInstant(30E6, WAKE_RF_DISABLED); // TODO constantize microsecond
           ESP.restart();
@@ -132,7 +132,7 @@ void setup()
     } while (true);
   }
 
-  LOGLN(PSTR("-- init lists"));
+  LOGLN(F("-- init lists"));
   uint8_t index = 0;
   deviceList = configuration->getDeviceList();
   ruleList = configuration->getRuleList();
@@ -141,15 +141,15 @@ void setup()
   countdownDetectedDeviceList = new uint8_t[deviceList.size()];
   previousValueRuleList = new int[ruleList.size()];
   ackRuleList = new bool[ruleList.size()];
-  LOGLN(PSTR("---"));
+  LOGLN(F("---"));
 
-  LOGLN(PSTR("-- init pins"));
+  LOGLN(F("-- init pins"));
   index = 0;
   for (Configuration::Device device : deviceList) {
     countdownDetectedDeviceList[index] = 0;
     ++index;
   }
-  LOGLN();
+  LOG(F("nbDevices=")); LOGLN(index);
 
   index = 0;
   for (Configuration::Rule rule : ruleList) {
@@ -162,15 +162,15 @@ void setup()
     ackRuleList[index] = false;
     ++index;
   }
-  LOGLN();
-  LOGLN(PSTR("---"));
+  LOG(F("nbRules=")); LOGLN(index);
+  LOGLN(F("---"));
 
-  LOGLN(PSTR("-- init features"));
+  LOGLN(F("-- init features"));
   esppl_init(parseFrame);
   fastTimer = new FastTimer(FastTimer::P_1s_4m);
   rpnSolver = new RpnSolver();
   rpnSolver->addMapper(hasDetectedDeviceById);
-  LOGLN(PSTR("---"));
+  LOGLN(F("---"));
 
   esppl_sniffing_start();
 
@@ -184,9 +184,9 @@ void startWiFi(void)
 
   if (!configuration->getGlobal()->acl.isSafeMode) {
     BUSYLED_ON;
-    LOGLN(PSTR("-- trying to connect to STA:"));
+    LOGLN(F("-- trying to connect to STA:"));
 
-    /* */
+    /* * /
     WiFi.mode(WIFI_STA);
     std::list<Configuration::WifiStation> wifiList = configuration->getWifiStationList();
     for (Configuration::WifiStation wifi : wifiList) {
@@ -197,19 +197,19 @@ void startWiFi(void)
         break;
       }
     }
-    /* * /
+    /* */
     ESP8266WiFiMulti wifiMulti;
     std::list<Configuration::WifiStation> wifiList = configuration->getWifiStationList();
     for (Configuration::WifiStation wifi : wifiList) {
       LOGLN(wifi.ssid);
-      wifiMulti.addAP(wifi.ssid, wifi.password);
+      wifiMulti.addAP(wifi.ssid.c_str() + '\0', wifi.password.c_str() + '\0');
     }
 
     if (wifiMulti.run(WS_WIFI_CONNEXION_TIMEOUT_MS) == WL_CONNECTED) {
-      LOG(PSTR("connected at: ")); LOGLN(WiFi.SSID());
+      LOG(F("connected at: ")); LOGLN(WiFi.SSID());
     }
     /* */
-    LOGLN(PSTR("---"));
+    LOGLN(F("---"));
   }
 
   if (WiFi.status() != WL_CONNECTED) {
@@ -217,9 +217,9 @@ void startWiFi(void)
      * set mode Guardian
      * (Configuration*, Configuration::Global*)
      */
-    LOGLN(PSTR("-- trying to create AP:"));
-    LOG(PSTR("AP ssid: "));LOGLN(configuration->getGlobal()->wifiAp.ssid);
-    LOG(PSTR("AP password: "));LOGLN(configuration->getGlobal()->wifiAp.password);
+    LOGLN(F("-- trying to create AP:"));
+    LOG(F("AP ssid: "));LOGLN(configuration->getGlobal()->wifiAp.ssid);
+    LOG(F("AP password: "));LOGLN(configuration->getGlobal()->wifiAp.password);
 
     WiFi.mode(WIFI_AP);
     WiFi.softAP(
@@ -229,7 +229,7 @@ void startWiFi(void)
       configuration->getGlobal()->wifiAp.isHidden
     );
 
-    LOGLN(PSTR("---"));
+    LOGLN(F("---"));
 
     BUSYLED_OFF;
   }
@@ -278,33 +278,7 @@ void parseFrame(esppl_frame_info *info) {
 }
 
 
-void loop()
-{
-  bool hasUpdate = false;
-  int index;
-
-  if (fastTimer->update()) {
-    BUSYLED_OFF;
-
-    if (countdown_s > 0) {
-      --countdown_s;
-      LOG("countdown_s="); LOGLN(countdown_s);
-    }
-
-    index = 0;
-    for (Configuration::Device device : deviceList) {
-      if (countdownDetectedDeviceList[index] > 0) {
-        if (countdownDetectedDeviceList[index] == 0) {
-          LOG(device.name); LOGLN(" has left");
-        }
-
-        countdownDetectedDeviceList[index] = countdownDetectedDeviceList[index] - 1;
-      }
-
-      ++index;
-    }
-  }
-  
+void scanWifi() {
   for (int i = ESPPL_CHANNEL_MIN; i <= ESPPL_CHANNEL_MAX; i++ ) {
     esppl_set_channel(i);
     for (uint8_t loopi=0; loopi<5; loopi++) {
@@ -313,8 +287,30 @@ void loop()
       }
     }
   }
+}
 
-  index = 0;
+
+void countdownDetectedDevices() {
+  uint8_t index = 0;
+
+  for (Configuration::Device device : deviceList) {
+    if (countdownDetectedDeviceList[index] > 0) {
+      if (countdownDetectedDeviceList[index] == 0) {
+        LOG(device.name); LOGLN(" has left");
+      }
+
+      countdownDetectedDeviceList[index] = countdownDetectedDeviceList[index] - 1;
+    }
+
+    ++index;
+  }
+}
+
+
+const bool hasUpdatedResults() {
+  bool hasUpdate = false;
+  uint8_t index = 0;
+
   for (Configuration::Rule rule : ruleList) {
     const int value = rpnSolver->resolve(rule.equation);
     
@@ -334,7 +330,7 @@ void loop()
       }
 
       previousValueRuleList[index] = value;
-      ackRuleList[index] = false;
+      ackRuleList[index] &= !update;
     }
 
     hasUpdate |= !ackRuleList[index];
@@ -342,57 +338,97 @@ void loop()
     ++index;
   }
 
-  if (hasUpdate && (countdown_s == 0)) {
-    esppl_sniffing_stop();
-    wifi_promiscuous_enable(false);
+  return hasUpdate;
+}
 
-    startWiFi();
-    BUSYLED_ON;
-    
-    std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
-    client->setInsecure();
 
-    HTTPClient https;
+void loop()
+{
+  if (fastTimer->update()) {
+    BUSYLED_OFF;
+    LOGF("[HW] Free heap: %d bytes\n", ESP.getFreeHeap());
 
-    char* method = new char[transport.method.length() + 1];
-    strcpy(method, transport.method.c_str());
-
-    index = 0;
-    for (Configuration::Rule rule : ruleList) {
-      if (!ackRuleList[index]) {
-        if (rule.pin != WS_RULE_PIN_NONE) {
-          digitalWrite(rule.pin, previousValueRuleList[index]>0 ? HIGH : LOW);
-        }
-
-        if (rule.key.length() == 0) {
-          ackRuleList[index] = true;
-        } else {
-          String value = String(previousValueRuleList[index]);
-
-          String uri = String(transport.uri);
-          uri.replace("{key}", rule.key);
-          uri.replace("{value}", value);
-
-          String payload = String(transport.payload);
-          payload.replace("{key}", rule.key);
-          payload.replace("{value}", value);
-
-          LOG(transport.method); LOG(' '); LOGLN(uri);
-          LOGLN(payload);
-
-          if (https.begin(*client, uri)) {
-            int httpCode = https.sendRequest(method, payload);
-            LOGLN(httpCode);
-
-            ackRuleList[index] = httpCode == HTTP_CODE_OK;
-          }
-        }
-      }
-
-      ++index;
+    if (countdown_s > 0) {
+      --countdown_s;
+      LOG("countdown_s="); LOGLN(countdown_s);
     }
 
-    esppl_init(parseFrame);
-    esppl_sniffing_start();
+    countdownDetectedDevices();
+  }
+  
+  scanWifi();
+
+  if ((countdown_s == 0) && hasUpdatedResults()) {
+
+    if (transport.uri.length() == 0) {
+      uint8_t index = 0;
+      for (Configuration::Rule rule : ruleList) {
+        if (!ackRuleList[index]) {
+          if (rule.pin != WS_RULE_PIN_NONE) {
+            digitalWrite(rule.pin, previousValueRuleList[index]>0 ? HIGH : LOW);
+          }
+          
+          ackRuleList[index] = true;
+        }
+
+        ++index;
+      }
+    } else {
+      /* prepare HTTPClient */
+      esppl_sniffing_stop();
+      wifi_promiscuous_enable(false);
+
+      startWiFi();
+      BUSYLED_ON;
+      
+      std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
+      client->setInsecure();
+
+      HTTPClient https;
+
+      char* method = new char[transport.method.length() + 1];
+      strcpy(method, transport.method.c_str());
+      /* ------------------ */
+
+      uint8_t index = 0;
+      for (Configuration::Rule rule : ruleList) {
+        if (!ackRuleList[index]) {
+          if (rule.pin != WS_RULE_PIN_NONE) {
+            digitalWrite(rule.pin, previousValueRuleList[index]>0 ? HIGH : LOW);
+          }
+
+          if (rule.key.length() == 0) {
+            ackRuleList[index] = true;
+          } else {
+            /* use HTTPClient */
+            String value = String(previousValueRuleList[index]);
+
+            String uri = String(transport.uri);
+            uri.replace("{key}", rule.key);
+            uri.replace("{value}", value);
+
+            String payload = String(transport.payload);
+            payload.replace("{key}", rule.key);
+            payload.replace("{value}", value);
+
+            LOG(transport.method); LOG(' '); LOGLN(uri);
+            LOGLN(payload);
+
+            if (https.begin(*client, uri)) {
+              int httpCode = https.sendRequest(method, payload);
+              LOGLN(httpCode);
+
+              ackRuleList[index] = httpCode == HTTP_CODE_OK;
+            }
+            /* -------------- */
+          }
+        }
+
+        ++index;
+      }
+
+      esppl_init(parseFrame);
+      esppl_sniffing_start();
+    }
   } 
 }

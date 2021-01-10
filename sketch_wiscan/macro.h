@@ -9,11 +9,13 @@
 #if WS_LOG_LEVEL != WS_LOG_LEVEL_OFF
   #define LOG_START() Serial.begin(WS_USB_SPEED)
   #define LOG(...)    Serial.print  (__VA_ARGS__)
+  #define LOGF(...)   Serial.printf (__VA_ARGS__)
   #define LOGLN(...)  Serial.println(__VA_ARGS__); Serial.flush()
   #define WAIT(ms)    delay(ms)
 #else
   #define LOG_START()
   #define LOG(...)
+  #define LOGF(...)
   #define LOGLN(...)
   #define WAIT(ms)
 #endif

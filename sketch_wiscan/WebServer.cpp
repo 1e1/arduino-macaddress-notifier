@@ -20,8 +20,8 @@ static ESP8266WebServer _server(WS_WEB_PORT);
 
 
 static fs::FS* _fs = nullptr;
-static char* _username = { '\0' };
-static char* _password = { '\0' };
+static char* _username = new char[1]; // { '\0' };
+static char* _password = new char[1]; // { '\0' };
 
 
 
@@ -135,18 +135,18 @@ void WebServer::_setup()
   });
 
   #if WS_WEB_SERVER_SECURE == WS_WEB_SERVER_SECURE_YES
-  LOG(PSTR("certificate "));
+  LOG(F("certificate "));
   //WebServer::_getFileContents(WS_CONFIG_KEY_PATH, _serverKey);
   //WebServer::_getFileContents(WS_CONFIG_CERT_PATH, _serverCert);
 
   if (certificate::serverCertType == certificate::CertType::CT_ECC) {
-    LOGLN(PSTR("ECC"));
+    LOGLN(F("ECC"));
     _server.getServer().setECCert(new BearSSL::X509List(certificate::serverCert), BR_KEYTYPE_KEYX|BR_KEYTYPE_SIGN, new BearSSL::PrivateKey(certificate::serverKey));
   } else if(certificate::serverCertType == certificate::CertType::CT_RSA) {
-    LOGLN(PSTR("RSA"));
+    LOGLN(F("RSA"));
     _server.getServer().setRSACert(new BearSSL::X509List(certificate::serverCert), new BearSSL::PrivateKey(certificate::serverKey));
   } else {
-    LOGLN(PSTR("ERROR"));
+    LOGLN(F("ERROR"));
   }
   #endif
 
@@ -171,8 +171,8 @@ const bool WebServer::_isAllowed()
 void WebServer::_streamHtml(const char* path, const bool isPublic)
 {
   if (isPublic || WebServer::_isAllowed()) {
-    _server.sendHeader(String(PSTR("Content-Encoding")), String(PSTR(WS_WEB_FILE_EXT)));
-    _server.sendHeader(String(PSTR("Cache-Control")), String(PSTR("max-age=86400")));
+    _server.sendHeader(String(F("Content-Encoding")), String(F(WS_WEB_FILE_EXT)));
+    _server.sendHeader(String(F("Cache-Control")), String(F("max-age=86400")));
 
     File file = _fs->open(path, "r");
     _server.streamFile(file, "text/html");
@@ -203,12 +203,13 @@ void WebServer::_uploadJson(const char* path)
     if (_server.hasArg("plain")) {
       String payload = _server.arg("plain");
       DynamicJsonDocument doc(WS_CONFIG_BUFFER_SIZE);
-      auto error = deserializeJson(doc, payload, DeserializationOption::NestingLimit(2));
+      DeserializationError error = deserializeJson(doc, payload, DeserializationOption::NestingLimit(2));
       LOGLN(payload);
       
       if (!error) {
         File file = _fs->open(path, "w");
         serializeJson(doc, file);
+        //serializeMsgPack(doc, file);
         file.close();
       }
     }

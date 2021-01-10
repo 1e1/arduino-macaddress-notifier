@@ -2,7 +2,7 @@
 
 
 readonly SCRIPT_DIR=$( cd "$( dirname $(realpath "${BASH_SOURCE[0]}") )" >/dev/null && pwd -P )
-source "$(dirname $SCRIPT_DIR)/_init.sh"
+source "${SCRIPT_DIR}/_init.sh"
 
 
 #=== 'prev-commit' solution by o_O Tync
