@@ -14,9 +14,6 @@
 #ifndef WS_PIN_CONFIG
 #define WS_PIN_CONFIG       A0
 #endif
-#ifndef WS_RELAY_NB_MAX
-#define WS_RELAY_NB_MAX     4
-#endif
 #ifndef WS_LOG_LEVEL
 #define WS_LOG_LEVEL        WS_LOG_LEVEL_ALL
 #endif

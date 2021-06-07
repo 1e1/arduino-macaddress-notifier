@@ -12,6 +12,8 @@ Scan device around, then notify a web server or flag a pin.
     - 'checked': more than the previous one
     - 'indeterminate': not equals the previous one
     - 'unckecked': less than the previous one
+- pin: ESP8266 GPIO number, or set `255` if no pin action is required
+    If you use a Wemos Mini D1, D0 is GPIO16, D1 is GPIO5, etc.
 
 
 ![portal-config-rules](./doc/portal.png)
@@ -29,11 +31,11 @@ Operators:
 - 'a b +': `1 2 +` = `3`
 - 'a b -': `10 4 -` = `6`
 - 'a b *': `5 2 *` = `10`
-- 'a b /': `12 3 +` = `4`
+- 'a b /': `12 3 /` = `4`
 - 'a b <': `2 1 <` = `0`
 - 'a b =': `9 9 =` = `1`
-- 'a b >': `7 5 +` = `1`
-- 'then else if ?': `8 3 1 ?` = `8`
+- 'a b >': `7 5 >` = `1`
+- 'then else if ?': `8 3 1 ?` = `8`, `8 3 0 ?` = `3`
 - 'a !': `0 !` = `1`
 
 

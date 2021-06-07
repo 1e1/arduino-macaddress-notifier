@@ -78,7 +78,7 @@ class Configuration {
   fs::FS* _fs = nullptr;
   Global _global;
 
-  DynamicJsonDocument _open(const char* filename);
+  DynamicJsonDocument* _open(const char* filename);
   void _loadGlobal(void);
 
 };

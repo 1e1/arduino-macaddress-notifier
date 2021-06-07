@@ -31,7 +31,7 @@
 #define WS_WEB_FILE_EXT_BR          "br"
 #define WS_WEB_FILE_EXT_GZ          "gz"
 
-#define WS_CONFIG_BUFFER_SIZE       512
+#define WS_CONFIG_BUFFER_SIZE       1024
 #define WS_RULE_PIN_NONE            ((uint8_t) -1)
  
 

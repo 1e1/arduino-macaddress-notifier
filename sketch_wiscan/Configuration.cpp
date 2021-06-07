@@ -65,8 +65,8 @@ const std::list<Configuration::WifiStation> Configuration::getWifiStationList()
 {
   std::list<Configuration::WifiStation> wifiStationList;
   if (_fs->exists(WS_CONFIG_WIFI_PATH)) {
-    DynamicJsonDocument doc = this->_open(WS_CONFIG_WIFI_PATH);
-    JsonArray root = doc.as<JsonArray>();
+    DynamicJsonDocument* doc = this->_open(WS_CONFIG_WIFI_PATH);
+    JsonArray root = doc->as<JsonArray>();
 
     for (JsonObject o : root) {
       Configuration::WifiStation wifi {
@@ -86,8 +86,8 @@ const std::list<Configuration::Device> Configuration::getDeviceList()
 {
   std::list<Configuration::Device> deviceList;
   if (_fs->exists(WS_CONFIG_DEVICE_PATH)) {
-    DynamicJsonDocument doc = this->_open(WS_CONFIG_DEVICE_PATH);
-    JsonArray root = doc.as<JsonArray>();
+    DynamicJsonDocument* doc = this->_open(WS_CONFIG_DEVICE_PATH);
+    JsonArray root = doc->as<JsonArray>();
 
     for (JsonObject o : root) {
       Configuration::Device device {
@@ -128,8 +128,8 @@ const std::list<Configuration::Rule> Configuration::getRuleList()
 {
   std::list<Configuration::Rule> ruleList;
   if (_fs->exists(WS_CONFIG_RULE_PATH)) {
-    DynamicJsonDocument doc = this->_open(WS_CONFIG_RULE_PATH);
-    JsonArray root = doc.as<JsonArray>();
+    DynamicJsonDocument* doc = this->_open(WS_CONFIG_RULE_PATH);
+    JsonArray root = doc->as<JsonArray>();
 
     for (JsonObject o : root) {
       Configuration::Rule rule {
@@ -149,8 +149,8 @@ const std::list<Configuration::Rule> Configuration::getRuleList()
 
 const Configuration::Transport Configuration::getTransport()
 {
-  DynamicJsonDocument doc = this->_open(WS_CONFIG_TRANSPORT_PATH);
-  JsonObject root = doc.as<JsonObject>();
+  DynamicJsonDocument* doc = this->_open(WS_CONFIG_TRANSPORT_PATH);
+  JsonObject root = doc->as<JsonObject>();
   
   Configuration::Transport t {
     .uri = root["u"].as<String>(),
@@ -170,12 +170,23 @@ const Configuration::Transport Configuration::getTransport()
 
 
 
-DynamicJsonDocument Configuration::_open(const char* filename)
+DynamicJsonDocument* Configuration::_open(const char* filename)
 {
   File file = _fs->open(filename, "r"); // "w+"
-  DynamicJsonDocument doc(WS_CONFIG_BUFFER_SIZE);
-  deserializeJson(doc, file, DeserializationOption::NestingLimit(2));
+  DynamicJsonDocument* doc = new DynamicJsonDocument(WS_CONFIG_BUFFER_SIZE);
+  deserializeJson(*doc, file, DeserializationOption::NestingLimit(2));
+  //ReadBufferingStream bufferingStream(file, 64);
+  //DeserializationError error = deserializeMsgPack(doc, bufferingStream, DeserializationOption::NestingLimit(2));
   file.close();
+  doc->shrinkToFit();
+
+  /*
+  if (error) {
+    Serial.print("deserializeMsgPack() failed: ");
+    Serial.println(error.f_str());
+    return;
+  }
+  */
 
   return doc;
 }
@@ -183,8 +194,8 @@ DynamicJsonDocument Configuration::_open(const char* filename)
 
 void Configuration::_loadGlobal()
 {
-  DynamicJsonDocument doc = this->_open(WS_CONFIG_GLOBAL_PATH);
-  JsonObject root = doc.as<JsonObject>();
+  DynamicJsonDocument* doc = this->_open(WS_CONFIG_GLOBAL_PATH);
+  JsonObject root = doc->as<JsonObject>();
   
   Configuration::Global g {
     .acl = {
