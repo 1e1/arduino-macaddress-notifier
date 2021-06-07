@@ -1,5 +1,5 @@
-#ifndef Configuration_h
-#define Configuration_h
+#ifndef Configuration_H_
+#define Configuration_H_
 
 
 
@@ -69,16 +69,16 @@ class Configuration {
   void begin(void);
   void setSafeMode(const bool isSafeMode=true);
   Global* getGlobal(void) { return &this->_global; };
-  const std::list<WifiStation> getWifiStationList(void);
-  const std::list<Device> getDeviceList(void);
-  const std::list<Rule> getRuleList(void);
-  const Transport getTransport(void);
+  const std::list<WifiStation> getWifiStationList(void) const;
+  const std::list<Device> getDeviceList(void) const;
+  const std::list<Rule> getRuleList(void) const;
+  const Transport getTransport(void) const;
 
   protected:
   fs::FS* _fs = nullptr;
   Global _global;
 
-  DynamicJsonDocument* _open(const char* filename);
+  JsonDocument* _open(const char* filename) const;
   void _loadGlobal(void);
 
 };

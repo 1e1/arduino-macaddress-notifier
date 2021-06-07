@@ -24,7 +24,6 @@
 #include <WiFiClientSecureBearSSL.h>
 #include <ArduinoJson.h>
 #include <LittleFS.h>
-//#include <fauxmoESP.h>
 #include <sys/time.h>
 #include <time.h>
 #include "config.h"
@@ -46,7 +45,6 @@
 Configuration* configuration;
 FastTimer* fastTimer;
 RpnSolver* rpnSolver;
-//fauxmoESP fauxmo;
 std::list<Configuration::Rule> ruleList;
 std::list<Configuration::Device> deviceList;
 Configuration::Transport transport;
@@ -54,7 +52,7 @@ Configuration::Transport transport;
 uint8_t* countdownDetectedDeviceList;
 int* previousValueRuleList;
 bool* ackRuleList;
-uint8_t countdown_s = WS_DEVICE_DETECTED_COUNTDOWN_S;
+uint8_t countdown_s;
 
 
 void setup()
@@ -76,9 +74,9 @@ void setup()
   pinMode(WS_PIN_CONFIG, INPUT_PULLUP);
   pinMode(WS_PIN_SAFEMODE, INPUT_PULLUP);
 
-  bool isUnlocked = digitalRead(WS_PIN_CONFIG) == HIGH;
-  bool isSafeMode = digitalRead(WS_PIN_SAFEMODE) == HIGH;
-  bool externalReset = ESP.getResetInfoPtr()->reason == rst_reason::REASON_EXT_SYS_RST;
+  const bool isUnlocked = digitalRead(WS_PIN_CONFIG) == HIGH;
+  const bool isSafeMode = digitalRead(WS_PIN_SAFEMODE) == HIGH;
+  const bool externalReset = ESP.getResetInfoPtr()->reason == rst_reason::REASON_EXT_SYS_RST;
 
   LOG("isUnlocked="); LOGLN(isUnlocked);
   LOG("isSafeMode="); LOGLN(isSafeMode);
@@ -101,12 +99,9 @@ void setup()
     // start portal
 
     LOGLN(F("-- setup WebServer"));
-    WebServer::setFs(LittleFS);
-    WebServer::setAuthentication(configuration->getGlobal()->acl.username, configuration->getGlobal()->acl.password);
-
-    server = new WebServer();
+    server = new WebServer(LittleFS);
+    server->setAuthentication(configuration->getGlobal()->acl.username, configuration->getGlobal()->acl.password);
     server->begin();
-
     LOGLN(F("---"));
 
     LOGLN(F("-- setup mDNS"));
@@ -122,15 +117,21 @@ void setup()
           BUSYLED_OFF;
           LOGLN(F("** RESTART **"));
 
-          ESP.deepSleepInstant(30E6, WAKE_RF_DISABLED); // TODO constantize microsecond
+          ESP.deepSleepInstant(ESP.deepSleepMax(), WAKE_RF_DISABLED);
           ESP.restart();
         }
       }
 
       server->loop();
+      yield();
       MDNS.update();
+      yield();
     } while (true);
   }
+
+  LOGLN(F("-- init globals"));
+  countdown_s = configuration->getGlobal()->acl.timeout;
+  LOGLN(F("---"));
 
   LOGLN(F("-- init lists"));
   uint8_t index = 0;
@@ -185,6 +186,7 @@ void startWiFi(void)
   if (!configuration->getGlobal()->acl.isSafeMode) {
     BUSYLED_ON;
     LOGLN(F("-- trying to connect to STA:"));
+    WiFi.setOutputPower(20); // TODO CONSTANTIZE
 
     /* * /
     WiFi.mode(WIFI_STA);
@@ -218,8 +220,12 @@ void startWiFi(void)
      * (Configuration*, Configuration::Global*)
      */
     LOGLN(F("-- trying to create AP:"));
+    WiFi.setOutputPower(10); // TODO CONSTANTIZE
     LOG(F("AP ssid: "));LOGLN(configuration->getGlobal()->wifiAp.ssid);
     LOG(F("AP password: "));LOGLN(configuration->getGlobal()->wifiAp.password);
+
+    IPAddress myIp(192, 168, 0, 1); // TODO CONSTANTIZE
+    WiFi.softAPConfig(myIp, myIp, IPAddress(255, 255, 255, 0));
 
     WiFi.mode(WIFI_AP);
     WiFi.softAP(
@@ -401,7 +407,9 @@ void loop()
             ackRuleList[index] = true;
           } else {
             /* use HTTPClient */
-            String value = String(previousValueRuleList[index]);
+            //String value = String(previousValueRuleList[index]);
+            char value[4];
+            itoa(previousValueRuleList[index], value, 10);
 
             String uri = String(transport.uri);
             uri.replace("{key}", rule.key);

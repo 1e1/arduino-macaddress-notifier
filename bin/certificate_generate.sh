@@ -7,6 +7,7 @@ source "$SCRIPT_DIR/_init.sh"
 
 TEMP_KEY="$HTML_DIR/_KEY.txt"
 TEMP_CSR="$HTML_DIR/_CSR.txt"
+TEMP_CSR_EXT="$HTML_DIR/_CSR-ext.ini"
 
 readonly OUTPUT_H="$SKETCH_DIR/certificate-generated.h"
 OUTPUT_KEY="$SKETCH_DATA_DIR/_KEY.txt"
@@ -40,6 +41,27 @@ do
 done
 
 
+### INI
+cat <<EOT > $TEMP_CSR_EXT
+[ req ]
+prompt = no
+distinguished_name = dn
+req_extensions = req_ext
+
+[ dn ]
+C = ${INPUT_COUNTRY}
+ST = ${INPUT_REGION}
+L = ${INPUT_CITY}
+O = ${INPUT_ORGANIZATION}
+OU = ${INPUT_ORGANIZATION_UNIT}
+CN = ${INPUT_DNAME}.local
+emailAddress = ${INPUT_EMAIL}
+
+[ req_ext ]
+subjectAltName = DNS:${INPUT_DNAME}.local, DNS:${DEFAULT_DNAME}.local, IP:${DEFAULT_AP_IP}
+EOT
+
+
 function gen_rsa {
 echo "generate RSA Key"
 #    -aes256 -passout pass:${INPUT_PASSWORD} -out ${TEMP_KEY} ${INPUT_KEYSIZE} \
@@ -54,8 +76,7 @@ openssl req \
     -out ${TEMP_CSR} \
     -x509 -sha256 \
     -days ${INPUT_DURATION} \
-    -subj "/C=${INPUT_COUNTRY}/ST=${INPUT_REGION}/L=${INPUT_CITY}/O=${INPUT_ORGANIZATION}/OU=${INPUT_ORGANIZATION_UNIT}/CN=${INPUT_DNAME}.local/emailAddress=${INPUT_EMAIL}" \
-    -addext subjectAltName=DNS:${INPUT_DNAME}.local,DNS:${DEFAULT_DNAME}.local,IP:${DEFAULT_AP_IP} \
+    -config ${TEMP_CSR_EXT} \
 
 }
 
@@ -72,8 +93,7 @@ openssl req \
     -out ${TEMP_CSR} \
     -x509 -sha256 \
     -days ${INPUT_DURATION} \
-    -subj "/C=${INPUT_COUNTRY}/ST=${INPUT_REGION}/L=${INPUT_CITY}/O=${INPUT_ORGANIZATION}/OU=${INPUT_ORGANIZATION_UNIT}/CN=${INPUT_DNAME}.local/emailAddress=${INPUT_EMAIL}" \
-    -addext subjectAltName=DNS:${INPUT_DNAME}.local,DNS:${DEFAULT_DNAME}.local,IP:${DEFAULT_AP_IP} \
+    -config ${TEMP_CSR_EXT} \
 
 }
 
@@ -86,12 +106,16 @@ case "${INPUT_TYPE}" in
 esac
 
 
+openssl x509 -text -sha256 -noout -in ${TEMP_CSR}
+
 
 echo "key file"
 ls -l $TEMP_KEY
+#cp $TEMP_KEY $OUTPUT_KEY
 
 echo "cert file"
 ls -l $TEMP_CSR
+#cp $TEMP_CSR $OUTPUT_CSR
 
 
 
@@ -99,15 +123,15 @@ echo "write .h"
 ########################################
 
 cat <<EOT > $OUTPUT_H
-#ifndef _certificate_H_
-#define _certificate_H_
+#ifndef CERTIFICATE_GENERATED_H_
+#define CERTIFICATE_GENERATED_H_
 
 namespace certificate {
     typedef enum { CT_ECC=0, CT_RSA=1 } CertType;
 
-    const char dname[] = "$INPUT_DNAME";
-
     const CertType serverCertType = CT_${INPUT_TYPE};
+
+    constexpr const char dname[] = "$INPUT_DNAME";
 
     const char serverKey[] PROGMEM = R"EOT(
 $(cat $TEMP_KEY)
@@ -118,5 +142,5 @@ $(cat $TEMP_CSR)
 )EOT";
 }
 
-#endif // _certificate_H_
+#endif // CERTIFICATE_GENERATED_H_
 EOT

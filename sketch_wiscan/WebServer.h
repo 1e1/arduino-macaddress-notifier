@@ -1,5 +1,5 @@
-#ifndef WebServer_h
-#define WebServer_h
+#ifndef WebServer_H_
+#define WebServer_H_
 
 
 
@@ -25,21 +25,32 @@ extern "C" {
 class WebServer {
 
   public:
-  void begin(void);
-  void loop(void);
+  WebServer(FS &fs);
 
-  static void setAuthentication(const String username, const String password);
-  static void setFs(FS &fs);
+  void begin(void) const;
+  void loop(void) const;
 
+  void setAuthentication(const String username, const String password);
+  
   protected:
-  void _setup(void);
+  void _setRoutes(void) const;
 
-  static const bool _isAllowed(void);
-  static void _handleAll(void);
-  static void _streamHtml(const char* path, const bool isPublic=true);
-  static void _streamJson(const char* path, const char* defaultValue, const bool isPublic=true);
-  static void _uploadJson(const char* path);
-  static const size_t _getFileContents(const char* path, char* &buffer);
+  const bool _isAllowed(void) const;
+  void _streamAbout(void) const;
+  void _streamHtml(const char* path) const;
+  void _streamJson(const char* path, const char* defaultValue) const;
+  void _uploadJson(const char* path) const;
+  const size_t _getFileContents(const char* path, char* &buffer) const;
+
+  char* _username;
+  char* _password;
+
+  #if WS_WEB_SERVER_SECURE == WS_WEB_SERVER_SECURE_YES
+  BearSSL::ESP8266WebServerSecure* _server;
+  #else
+  ESP8266WebServer* _server;
+  #endif
+  FS* _fs;
 };
 
 

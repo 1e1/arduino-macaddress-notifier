@@ -4,7 +4,7 @@
 namespace certificate {
     typedef enum { CT_ECC=0, CT_RSA=1 } CertType;
 
-    const char dname[] = "wicheck";
+    constexpr const char dname[] = "wicheck";
 
     const CertType serverCertType = CT_ECC;
 
