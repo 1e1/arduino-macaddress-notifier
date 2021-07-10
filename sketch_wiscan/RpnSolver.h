@@ -1,5 +1,5 @@
-#ifndef RpnSolver_h
-#define RpnSolver_h
+#ifndef RpnSolver_H_
+#define RpnSolver_H_
 
 
 
@@ -18,13 +18,12 @@ class RpnSolver {
   //typedef int (* valueOfId)(int id);
 
   void addMapper(valueOfId mapper);
-  const bool check(String equation);
+  const bool check(String equation) const;
   const int resolve(String equation);
 
   protected:
   void _push(int value);
-  int _pop();
-  void _readValue();
+  int _pop(void);
   void _compute1(char operand);
   void _compute2(char operand);
   void _compute3(char operand);

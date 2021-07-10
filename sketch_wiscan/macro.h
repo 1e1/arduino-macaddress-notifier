@@ -29,8 +29,8 @@
 
 #ifdef WS_LOG_LED
   #define BUSYLED_INIT pinMode(WS_LOG_LED, OUTPUT)
-  #define BUSYLED_ON digitalWrite(WS_LOG_LED, LOW)
-  #define BUSYLED_OFF digitalWrite(WS_LOG_LED, HIGH)
+  #define BUSYLED_ON   digitalWrite(WS_LOG_LED, LOW)
+  #define BUSYLED_OFF  digitalWrite(WS_LOG_LED, HIGH)
 #else
   #define BUSYLED_INIT
   #define BUSYLED_ON

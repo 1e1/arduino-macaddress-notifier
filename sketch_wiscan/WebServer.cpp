@@ -9,19 +9,21 @@
 
 
 
-#if WS_WEB_SERVER_SECURE == WS_WEB_SERVER_SECURE_YES
-static BearSSL::ESP8266WebServerSecure _server(WS_WEB_PORT);
-//static char* _serverKey;
-//static char* _serverCert;
-
-#else
-static ESP8266WebServer _server(WS_WEB_PORT);
+#if WM_WEB_SERVER_SECURE == WM_WEB_SERVER_SECURE_YES
+static BearSSL::ServerSessions _serverCache(WS_WEB_SERVER_CACHE_SIZE);
 #endif
 
+static constexpr const char TEXT_HTML[] PROGMEM = "text/html";
+static constexpr const char TEXT_JSON[] PROGMEM = "text/json";
+static constexpr const char PLAIN[] PROGMEM = "plain";
+static constexpr const char CONTENT_ENCODING[] PROGMEM = "Content-Encoding";
+static constexpr const char CACHE_CONTROL[] PROGMEM = "Cache-Control";
+static constexpr const char X_HEAP[] PROGMEM = "X-Heap";
+static constexpr const char X_UPTIME[] PROGMEM = "X-Uptime";
+static constexpr const char MAX_AGE_86400[] PROGMEM = "max-age=86400";
 
-static fs::FS* _fs = nullptr;
-static char* _username = new char[1]; // { '\0' };
-static char* _password = new char[1]; // { '\0' };
+static constexpr const char _jsonArrayEmpty[] = "[]";
+static constexpr const char _jsonObjectEmpty[] = "{}";
 
 
 
@@ -34,33 +36,58 @@ static char* _password = new char[1]; // { '\0' };
 
 
 
-void WebServer::begin()
+WebServer::WebServer(FS &fs)
 {
-  this->_setup();
+  #if WS_WEB_SERVER_SECURE == WS_WEB_SERVER_SECURE_YES
+  this->_server = new BearSSL::ESP8266WebServerSecure(WS_WEB_PORT);
+  
+  LOG(F("certificate "));
+  this->_server->getServer().setCache(&_serverCache);
+
+  if (certificate::serverCertType == certificate::CertType::CT_ECC) {
+    LOGLN(F("ECC"));
+    this->_server->getServer().setECCert(new BearSSL::X509List(certificate::serverCert), BR_KEYTYPE_KEYX|BR_KEYTYPE_SIGN, new BearSSL::PrivateKey(certificate::serverKey));
+  } else if(certificate::serverCertType == certificate::CertType::CT_RSA) {
+    LOGLN(F("RSA"));
+    this->_server->getServer().setRSACert(new BearSSL::X509List(certificate::serverCert), new BearSSL::PrivateKey(certificate::serverKey));
+  } else {
+    LOGLN(F("ERROR"));
+  }
+  #else
+  this->_server = new ESP8266WebServer(WS_WEB_PORT);
+  #endif
+
+  this->_fs = &fs;
+
+  this->_username = new char[1]; // { '\0' };
+  this->_password = new char[1]; // { '\0' };
+} 
+
+
+void WebServer::begin(void) const
+{
+  this->_setRoutes();
+
+  //this->_server->getServer().setNoDelay(true);
+  this->_server->begin();
 }
 
 
-void WebServer::loop()
+void WebServer::loop(void) const
 {
-  _server.handleClient();
+  this->_server->handleClient();
 }
 
 
 void WebServer::setAuthentication(String username, String password)
 {
-  _username = new char[username.length() + 1];
-  strcpy(_username, username.c_str());
+  this->_username = new char[username.length() + 1];
+  strcpy(this->_username, username.c_str());
 
-  _password = new char[password.length() + 1];
-  strcpy(_password, password.c_str());
+  this->_password = new char[password.length() + 1];
+  strcpy(this->_password, password.c_str());
 
   LOG("'"); LOG(_username); LOG("' : '"); LOG(_password); LOGLN("'");
-}
-
-
-void WebServer::setFs(FS &fs)
-{
-  _fs = &fs;
 }
 
 
@@ -72,93 +99,77 @@ void WebServer::setFs(FS &fs)
 
 
 
-void WebServer::_setup()
+void WebServer::_setRoutes(void) const
 {
-  _server.on("/", HTTP_GET, []() {
-    WebServer::_streamHtml(WS_WEB_INDEX_BASENAME "." WS_WEB_FILE_EXT, true);
+  this->_server->on("/", HTTP_GET, [=]() {
+    this->_streamHtml(WS_WEB_INDEX_BASENAME "." WS_WEB_FILE_EXT);
   });
 
-  _server.on("/portal", HTTP_GET, []() {
-    WebServer::_streamHtml(WS_WEB_PORTAL_BASENAME "." WS_WEB_FILE_EXT, false);
+  this->_server->on("/portal", HTTP_GET, [=]() {
+    if (this->_isAllowed()) {
+      this->_streamHtml(WS_WEB_PORTAL_BASENAME "." WS_WEB_FILE_EXT);
+    }
   });
 
-  _server.on("/cfg/g", HTTP_GET, []() {
-    WebServer::_streamJson(WS_CONFIG_GLOBAL_PATH, "{}", false);
+  this->_server->on("/cfg/g", HTTP_GET, [=]() {
+    this->_streamJson(WS_CONFIG_GLOBAL_PATH, _jsonObjectEmpty);
   });
 
-  _server.on("/cfg/g", HTTP_POST, []() {
-    WebServer::_uploadJson(WS_CONFIG_GLOBAL_PATH);
+  this->_server->on("/cfg/g", HTTP_POST, [=]() {
+    this->_uploadJson(WS_CONFIG_GLOBAL_PATH);
   });
 
-  _server.on("/cfg/w", HTTP_GET, []() { 
-    WebServer::_streamJson(WS_CONFIG_WIFI_PATH, "[]", false);
+  this->_server->on("/cfg/w", HTTP_GET, [=]() { 
+    this->_streamJson(WS_CONFIG_WIFI_PATH, _jsonArrayEmpty);
   });
 
-  _server.on("/cfg/w", HTTP_POST, []() {
-    WebServer::_uploadJson(WS_CONFIG_WIFI_PATH);
+  this->_server->on("/cfg/w", HTTP_POST, [=]() {
+    this->_uploadJson(WS_CONFIG_WIFI_PATH);
   });
 
-  _server.on("/cfg/d", HTTP_GET, []() { 
-    WebServer::_streamJson(WS_CONFIG_DEVICE_PATH, "[]", false);
+  this->_server->on("/cfg/d", HTTP_GET, [=]() { 
+    this->_streamJson(WS_CONFIG_DEVICE_PATH, _jsonArrayEmpty);
   });
 
-  _server.on("/cfg/d", HTTP_POST, []() {
-    WebServer::_uploadJson(WS_CONFIG_DEVICE_PATH);
+  this->_server->on("/cfg/d", HTTP_POST, [=]() {
+    this->_uploadJson(WS_CONFIG_DEVICE_PATH);
   });
 
-  _server.on("/cfg/r", HTTP_GET, []() { 
-    WebServer::_streamJson(WS_CONFIG_RULE_PATH, "[]", false);
+  this->_server->on("/cfg/r", HTTP_GET, [=]() { 
+    this->_streamJson(WS_CONFIG_RULE_PATH, _jsonArrayEmpty);
   });
 
-  _server.on("/cfg/r", HTTP_POST, []() {
-    WebServer::_uploadJson(WS_CONFIG_RULE_PATH);
+  this->_server->on("/cfg/r", HTTP_POST, [=]() {
+    this->_uploadJson(WS_CONFIG_RULE_PATH);
   });
 
-  _server.on("/cfg/t", HTTP_GET, []() { 
-    WebServer::_streamJson(WS_CONFIG_TRANSPORT_PATH, "{}", false);
+  this->_server->on("/cfg/t", HTTP_GET, [=]() { 
+    this->_streamJson(WS_CONFIG_TRANSPORT_PATH, _jsonObjectEmpty);
   });
 
-  _server.on("/cfg/t", HTTP_POST, []() {
-    WebServer::_uploadJson(WS_CONFIG_TRANSPORT_PATH);
+  this->_server->on("/cfg/t", HTTP_POST, [=]() {
+    this->_uploadJson(WS_CONFIG_TRANSPORT_PATH);
   });
   
-  _server.on("/cfg/reboot", HTTP_DELETE, []() {
-    if (WebServer::_isAllowed()) {
-      _server.send(200, "text/json", "\"reboot\"");
+  this->_server->on("/cfg/reboot", HTTP_DELETE, [=]() {
+    if (this->_isAllowed()) {
+      this->_server->send(200, FPSTR(TEXT_JSON), F("\"reboot\""));
       LOGLN(F("** RESTART **"));
       ESP.restart();
     }
   });
   
-  _server.on("/about", HTTP_GET, []() {
-    _server.send(200, "text/json", "{\"hash\":\"" SCM_HASH "\",\"date\":\"" SCM_DATE "\",\"chan\":\"" SCM_CHAN "\"}");
+  this->_server->on("/about", HTTP_GET, [=]() {
+    this->_streamAbout();
   });
-
-  #if WS_WEB_SERVER_SECURE == WS_WEB_SERVER_SECURE_YES
-  LOG(F("certificate "));
-  //WebServer::_getFileContents(WS_CONFIG_KEY_PATH, _serverKey);
-  //WebServer::_getFileContents(WS_CONFIG_CERT_PATH, _serverCert);
-
-  if (certificate::serverCertType == certificate::CertType::CT_ECC) {
-    LOGLN(F("ECC"));
-    _server.getServer().setECCert(new BearSSL::X509List(certificate::serverCert), BR_KEYTYPE_KEYX|BR_KEYTYPE_SIGN, new BearSSL::PrivateKey(certificate::serverKey));
-  } else if(certificate::serverCertType == certificate::CertType::CT_RSA) {
-    LOGLN(F("RSA"));
-    _server.getServer().setRSACert(new BearSSL::X509List(certificate::serverCert), new BearSSL::PrivateKey(certificate::serverKey));
-  } else {
-    LOGLN(F("ERROR"));
-  }
-  #endif
-
-  _server.begin();
 }
 
 
-const bool WebServer::_isAllowed()
+const bool WebServer::_isAllowed(void) const
 {
-  if (_username[0] != '\0' && _password[0] != '\0') {
-    if (!_server.authenticate(_username, _password)) {
-      _server.requestAuthentication();
+  if (this->_username[0] != '\0' && this->_password[0] != '\0') {
+    if (!this->_server->authenticate(this->_username, this->_password)) {
+      this->_server->requestAuthentication();
 
       return false;
     }
@@ -168,60 +179,70 @@ const bool WebServer::_isAllowed()
 }
 
 
-void WebServer::_streamHtml(const char* path, const bool isPublic)
+void WebServer::_streamAbout(void) const
 {
-  if (isPublic || WebServer::_isAllowed()) {
-    _server.sendHeader(String(F("Content-Encoding")), String(F(WS_WEB_FILE_EXT)));
-    _server.sendHeader(String(F("Cache-Control")), String(F("max-age=86400")));
+  this->_server->sendHeader(FPSTR(X_HEAP), String(ESP.getFreeHeap()));
+  this->_server->sendHeader(FPSTR(X_UPTIME), String(millis()));
+  this->_server->send(
+    200, 
+    FPSTR(TEXT_JSON), 
+    F("{\"repo\":\"" SCM_REPO "\",\"hash\":\"" SCM_HASH "\",\"date\":\"" SCM_DATE "\",\"chan\":\"" SCM_CHAN "\"}")
+  );
+}
 
-    File file = _fs->open(path, "r");
-    _server.streamFile(file, "text/html");
+
+void WebServer::_streamHtml(const char* path) const
+{
+  this->_server->sendHeader(FPSTR(CONTENT_ENCODING), F(WM_WEB_FILE_EXT));
+  this->_server->sendHeader(FPSTR(CACHE_CONTROL), FPSTR(MAX_AGE_86400));
+
+  File file = this->_fs->open(path, "r");
+  this->_server->streamFile(file, FPSTR(TEXT_HTML));
+  file.close();
+}
+
+
+void WebServer::_streamJson(const char* path, const char* defaultValue) const
+{
+  if (this->_isAllowed()) {
+    if (!this->_fs->exists(path)) {
+      this->_server->send(200, FPSTR(TEXT_JSON), defaultValue);
+    }
+
+    File file = this->_fs->open(path, "r");
+    this->_server->streamFile(file, FPSTR(TEXT_JSON));
     file.close();
   }
 }
 
 
-void WebServer::_streamJson(const char* path, const char* defaultValue, const bool isPublic)
+void WebServer::_uploadJson(const char* path) const
 {
-  if (isPublic || WebServer::_isAllowed()) {
-    if (_fs->exists(path)) {
-      File file = _fs->open(path, "r");
-      _server.streamFile(file, "text/json");
+  if (this->_isAllowed()) {
+    if (!this->_server->hasArg(FPSTR(PLAIN))) {
+      return this->_server->send(400/*, FPSTR(TEXT_JSON), _jsonObjectEmpty*/); // TODO
+    }
+
+    String payload = this->_server->arg(FPSTR(PLAIN));
+    DynamicJsonDocument doc(WS_CONFIG_BUFFER_SIZE);
+    DeserializationError error = deserializeJson(doc, payload, DeserializationOption::NestingLimit(2));
+    LOGLN(payload);
+    
+    if (!error) {
+      File file = this->_fs->open(path, "w");
+      serializeJson(doc, file);
+      //serializeMsgPack(doc, file);
       file.close();
-
-      return;
-    }
-  }
-
-  _server.send(200, "text/json", defaultValue);
-}
-
-
-void WebServer::_uploadJson(const char* path)
-{
-  if (WebServer::_isAllowed()) {
-    if (_server.hasArg("plain")) {
-      String payload = _server.arg("plain");
-      DynamicJsonDocument doc(WS_CONFIG_BUFFER_SIZE);
-      DeserializationError error = deserializeJson(doc, payload, DeserializationOption::NestingLimit(2));
-      LOGLN(payload);
-      
-      if (!error) {
-        File file = _fs->open(path, "w");
-        serializeJson(doc, file);
-        //serializeMsgPack(doc, file);
-        file.close();
-      }
     }
 
-    WebServer::_streamJson(path, "null");
+    this->_streamJson(path, "null");
   }
 }
 
 
-const size_t WebServer::_getFileContents(const char* path, char* &buffer)
+const size_t WebServer::_getFileContents(const char* path, char* &buffer) const
 {
-  File file = _fs->open(path, "r");
+  File file = this->_fs->open(path, "r");
   const size_t size = file.size();
   std::unique_ptr<char[]> buf(new char[size]);
   file.readBytes(buf.get(), size);

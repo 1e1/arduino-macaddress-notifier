@@ -4,4 +4,4 @@ web/html/_*.txt
 web/html/_*.html
 
 sketch_wiscan/dump
-sketch_wiscan/data
+sketch_wiscan/data/*.json

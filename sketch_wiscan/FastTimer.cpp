@@ -40,8 +40,8 @@ FastTimer::FastTimer(const Precision precision)
   */
 const uint8_t FastTimer::update()
 {
-  const uint8_t previousTime = FastTimer::_embedTime;
-  FastTimer::_embedTime = byte(millis() >> this->_precision);
-  FastTimer::_section = FastTimer::_embedTime ^ previousTime;
-  return FastTimer::_section;
+  const uint8_t previousTime = this->_embedTime;
+  this->_embedTime = byte(millis() >> this->_precision);
+  this->_section = this->_embedTime ^ previousTime;
+  return this->_section;
 }

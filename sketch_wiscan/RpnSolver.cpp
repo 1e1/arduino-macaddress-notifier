@@ -9,10 +9,10 @@
 
 
 
-const char RpnSolver::_separators[] = " ";
-const char RpnSolver::_operators1[] = "!";
-const char RpnSolver::_operators2[] = "+-*/<=>";
-const char RpnSolver::_operators3[] = "?";
+constexpr const char RpnSolver::_separators[] = " ";
+constexpr const char RpnSolver::_operators1[] = "!";
+constexpr const char RpnSolver::_operators2[] = "+-*/<=>";
+constexpr const char RpnSolver::_operators3[] = "?";
 
 
 
@@ -30,7 +30,7 @@ void RpnSolver::addMapper(valueOfId mapper)
 }
 
 
-const bool RpnSolver::check(String equation)
+const bool RpnSolver::check(String equation) const
 {
   //LOG("eq? "); LOGLN(equation);
 
@@ -148,7 +148,7 @@ void RpnSolver::_push(int value)
   this->_stack.emplace_back(value);
 }
 
-int RpnSolver::_pop()
+int RpnSolver::_pop(void)
 {
   int out = this->_stack.back();
   this->_stack.pop_back();
