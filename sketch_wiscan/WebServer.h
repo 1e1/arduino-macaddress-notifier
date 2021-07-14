@@ -40,7 +40,6 @@ class WebServer {
   void _streamHtml(const char* path) const;
   void _streamJson(const char* path, const char* defaultValue) const;
   void _uploadJson(const char* path) const;
-  const size_t _getFileContents(const char* path, char* &buffer) const;
 
   char* _username;
   char* _password;
