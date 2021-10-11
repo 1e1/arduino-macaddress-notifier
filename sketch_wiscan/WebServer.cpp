@@ -9,7 +9,7 @@
 
 
 
-#if WM_WEB_SERVER_SECURE == WM_WEB_SERVER_SECURE_YES
+#if WS_WEB_SERVER_SECURE == WS_WEB_SERVER_SECURE_YES
 static BearSSL::ServerSessions _serverCache(WS_WEB_SERVER_CACHE_SIZE);
 #endif
 
@@ -193,7 +193,7 @@ void WebServer::_streamAbout(void) const
 
 void WebServer::_streamHtml(const char* path) const
 {
-  this->_server->sendHeader(FPSTR(CONTENT_ENCODING), F(WM_WEB_FILE_EXT));
+  this->_server->sendHeader(FPSTR(CONTENT_ENCODING), F(WS_WEB_FILE_EXT));
   this->_server->sendHeader(FPSTR(CACHE_CONTROL), FPSTR(MAX_AGE_86400));
 
   File file = this->_fs->open(path, "r");
@@ -237,16 +237,4 @@ void WebServer::_uploadJson(const char* path) const
 
     this->_streamJson(path, "null");
   }
-}
-
-
-const size_t WebServer::_getFileContents(const char* path, char* &buffer) const
-{
-  File file = this->_fs->open(path, "r");
-  const size_t size = file.size();
-  std::unique_ptr<char[]> buf(new char[size]);
-  file.readBytes(buf.get(), size);
-  file.close();
-
-  return size;
 }

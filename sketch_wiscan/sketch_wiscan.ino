@@ -16,7 +16,6 @@
 
 
 
-#include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
@@ -78,9 +77,9 @@ void setup()
   const bool isSafeMode = digitalRead(WS_PIN_SAFEMODE) == HIGH;
   const bool externalReset = ESP.getResetInfoPtr()->reason == rst_reason::REASON_EXT_SYS_RST;
 
-  LOG("isUnlocked="); LOGLN(isUnlocked);
-  LOG("isSafeMode="); LOGLN(isSafeMode);
-  LOG("externalReset="); LOGLN(externalReset);
+  LOG(F("isUnlocked=")); LOGLN(isUnlocked);
+  LOG(F("isSafeMode=")); LOGLN(isSafeMode);
+  LOG(F("externalReset=")); LOGLN(externalReset);
 
   LOGLN(F("-- load Configuration"));
   configuration->begin();
@@ -89,6 +88,14 @@ void setup()
   if (isUnlocked || externalReset) {
     configuration->getGlobal()->acl.canAutoRestart = false;
   }
+
+  LOG(F("acl.username: ")); LOGLN(configuration->getGlobal()->acl.username);
+  LOG(F("acl.timeout: ")); LOGLN(configuration->getGlobal()->acl.timeout);
+  LOG(F("acl.isSafeMode: ")); LOGLN(configuration->getGlobal()->acl.isSafeMode);
+  LOG(F("acl.canAutoRestart: ")); LOGLN(configuration->getGlobal()->acl.canAutoRestart);
+  LOG(F("wifiAp.ssid: ")); LOGLN(configuration->getGlobal()->wifiAp.ssid);
+  LOG(F("wifiAp.channel: ")); LOGLN(configuration->getGlobal()->wifiAp.channel);
+  LOG(F("wifiAp.isHidden: ")); LOGLN(configuration->getGlobal()->wifiAp.isHidden);
   LOGLN(F("---"));
 
   if (externalReset) {
@@ -181,25 +188,14 @@ void setup()
 
 void startWiFi(void)
 {
-  WiFi.hostname(certificate::dname);
-
   if (!configuration->getGlobal()->acl.isSafeMode) {
     BUSYLED_ON;
     LOGLN(F("-- trying to connect to STA:"));
-    WiFi.setOutputPower(20); // TODO CONSTANTIZE
-
-    /* * /
     WiFi.mode(WIFI_STA);
-    std::list<Configuration::WifiStation> wifiList = configuration->getWifiStationList();
-    for (Configuration::WifiStation wifi : wifiList) {
-      LOGLN(wifi.ssid);
-      WiFi.begin(wifi.ssid, wifi.password);
-      
-      if (WiFi.waitForConnectResult(WS_WIFI_CONNEXION_TIMEOUT_MS) == WL_CONNECTED) {
-        break;
-      }
-    }
-    /* */
+    WiFi.hostname(certificate::dname);
+    WiFi.setOutputPower(WS_WIFI_STA_OUTPUT_POWER);
+    WiFi.setPhyMode(WS_WIFI_STA_PHY_MODE);
+
     ESP8266WiFiMulti wifiMulti;
     std::list<Configuration::WifiStation> wifiList = configuration->getWifiStationList();
     for (Configuration::WifiStation wifi : wifiList) {
@@ -220,14 +216,17 @@ void startWiFi(void)
      * (Configuration*, Configuration::Global*)
      */
     LOGLN(F("-- trying to create AP:"));
-    WiFi.setOutputPower(10); // TODO CONSTANTIZE
+    WiFi.mode(WIFI_AP);
+    WiFi.hostname(certificate::dname);
+    WiFi.setOutputPower(WS_WIFI_AP_OUTPUT_POWER);
+    WiFi.setPhyMode(WS_WIFI_AP_PHY_MODE);
+
     LOG(F("AP ssid: "));LOGLN(configuration->getGlobal()->wifiAp.ssid);
     LOG(F("AP password: "));LOGLN(configuration->getGlobal()->wifiAp.password);
 
-    IPAddress myIp(192, 168, 0, 1); // TODO CONSTANTIZE
-    WiFi.softAPConfig(myIp, myIp, IPAddress(255, 255, 255, 0));
+    //IPAddress myIp(192, 168, 0, 1); // TODO CONSTANTIZE
+    //WiFi.softAPConfig(myIp, myIp, IPAddress(255, 255, 255, 0));
 
-    WiFi.mode(WIFI_AP);
     WiFi.softAP(
       configuration->getGlobal()->wifiAp.ssid, 
       configuration->getGlobal()->wifiAp.password, 

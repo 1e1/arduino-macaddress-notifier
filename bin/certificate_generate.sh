@@ -58,7 +58,7 @@ CN = ${INPUT_DNAME}.local
 emailAddress = ${INPUT_EMAIL}
 
 [ req_ext ]
-subjectAltName = DNS:${INPUT_DNAME}.local, DNS:${DEFAULT_DNAME}.local, IP:${DEFAULT_AP_IP}
+subjectAltName = DNS:${INPUT_DNAME}.local, DNS:${INPUT_DNAME}.lan, DNS:${DEFAULT_DNAME}.local, IP:${DEFAULT_AP_IP}
 EOT
 
 

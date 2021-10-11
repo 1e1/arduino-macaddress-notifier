@@ -60,6 +60,19 @@
 #ifndef WS_WIFI_CONNEXION_TIMEOUT_MS
 #define WS_WIFI_CONNEXION_TIMEOUT_MS    30000
 #endif
+#ifndef WS_WIFI_STA_OUTPUT_POWER
+#define WS_WIFI_STA_OUTPUT_POWER        20
+#endif
+#ifndef WS_WIFI_AP_OUTPUT_POWER
+#define WS_WIFI_AP_OUTPUT_POWER         10
+#endif
+#ifndef WS_WIFI_STA_PHY_MODE
+#define WS_WIFI_STA_PHY_MODE            WIFI_PHY_MODE_11N
+#endif
+#ifndef WS_WIFI_AP_PHY_MODE
+// WIFI_PHY_MODE_11B | WIFI_PHY_MODE_11G | WIFI_PHY_MODE_11N
+#define WS_WIFI_AP_PHY_MODE             WIFI_PHY_MODE_11N
+#endif
 // =========================
 
 
