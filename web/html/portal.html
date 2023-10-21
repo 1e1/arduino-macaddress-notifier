@@ -1,40 +1,38 @@
 <html>
 <head>
 <style>
-h2{
-    background:peru;
-    padding:0 1em;
-}
-
 input{
     width:280px;
     font-family:monospace;
 }
 
-[min],[onclick]{
+h2>button{
+    float:right;
+}
+
+h2{
+    background:peru;
+    padding:0 1em;
+}
+
+[onclick],[min]{
     width:60px;
 }
 
 [onclick^=s]{
     display:none;
 }
-h2 button{
-    float:right;
-}
 </style>
 <script>
 o={};
 f=(a,u)=>{
-    let x=new XMLHttpRequest;
-    x.open(a,`/cfg/${u}.json`,0);
-    x.send(JSON.stringify(o[u]));
-    if(200==x.status){
-        o[u]=JSON.parse(x.response);
-        p[u]()
+    let h=new XMLHttpRequest;
+    h.onload=()=>{
+        o[u]=JSON.parse(h.response);
+        p[u]();
     }
-};
-b=(a,u)=>{
-    document.querySelector(`[onclick*="('${a}')"]`).style.display=u?"block":"none";
+    h.open(a,`/cfg/${u}.json`);
+    h.send(JSON.stringify(o[u]));
 };
 a=(a,u)=>{
     o[a].push(u);
@@ -58,13 +56,16 @@ c=(a,u)=>{
     a.indeterminate=0>a.value;
     a.checked=0<a.value;
 };
+b=(a,u)=>{
+    document.querySelector(`[onclick*="('${a}')"]`).style.display=u?"block":"none";
+};
 d=(a,u)=>{
     document.getElementById(a).innerHTML=u;
     p.g();
 };
 p={
     g:(a,u)=>{
-        document.querySelectorAll('[data-o]').forEach((a,u)=>{
+        document.querySelectorAll(`[data-o]`).forEach((a,u)=>{
             if(undefined!=o[a.dataset.o[0]]){
                 a.value=a.dataset.o.length>2?o[a.dataset.o[0]][a.dataset.o.substr(2)][a.dataset.o[1]]:o[a.dataset.o[0]][a.dataset.o[1]];
                 a.onchange=()=>{
@@ -85,15 +86,6 @@ p={
         h+=`<tr><td><input type=text minlength=1 maxlength=32 id=wn></td><td><input type=password minlength=8 maxlength=63 id=wp></td><td><button onclick="a('w',{'n':document.getElementById('wn').value,'p':document.getElementById('wp').value})">+</button></td></tr>`;
         d('w',h);
     },
-    d:(a,u)=>{
-        h='';
-        u=o.d.length;
-        o.d.forEach((a,u)=>{
-            h+=`<tr><td><input type=number min=0 data-o=di${u}></td><td><input type=text minlength=1 maxlength=32 data-o=dn${u}></td><td><input type=text minlength=1 maxlength=32 data-o=dm${u}></td><td><button onclick="r('d',${u})">-</button></td></tr>`;
-        });
-        h+=`<tr><td><input type=number min=0 id=di value=${u}></td><td><input type=text minlength=1 maxlength=32 id=dn></td><td><input type=text minlength=1 maxlength=32 id=dm></td><td><button onclick="a('d',{'i':document.getElementById('di').value,'n':document.getElementById('dn').value,'m':document.getElementById('dm').value})">+</button></td></tr>`;
-        d('d',h);
-    },
     r:(a,u)=>{
         h='';
         u=o.r.length;
@@ -104,6 +96,15 @@ p={
         d('r',h);
         document.getElementById('rd').indeterminate=true;
     },
+    d:(a,u)=>{
+        h='';
+        u=o.d.length;
+        o.d.forEach((a,u)=>{
+            h+=`<tr><td><input type=number min=0 data-o=di${u}></td><td><input type=text minlength=1 maxlength=32 data-o=dn${u}></td><td><input type=text minlength=1 maxlength=32 data-o=dm${u}></td><td><button onclick="r('d',${u})">-</button></td></tr>`;
+        });
+        h+=`<tr><td><input type=number min=0 id=di value=${u}></td><td><input type=text minlength=1 maxlength=32 id=dn></td><td><input type=text minlength=1 maxlength=32 id=dm></td><td><button onclick="a('d',{'i':document.getElementById('di').value,'n':document.getElementById('dn').value,'m':document.getElementById('dm').value})">+</button></td></tr>`;
+        d('d',h);
+    },
     t:(a,u)=>{
         p.g(a,u);
     },
@@ -113,15 +114,14 @@ p={
             f('GET','g');
             if(o.g)
                 window.location.reload();
-        }, 2000);
+        },2000);
     }
 };
 </script>
 </head>
 <body onload="f('GET','g');f('GET','w');f('GET','d');f('GET','r');f('GET','t')">
-<h2>access point<button onclick="x('reboot')">reboot</button><button onclick="s('g')">save</button></h2>
+<h2>global<button onclick="x('reboot')">reboot</button><button onclick="s('g')">save</button></h2>
 <table>
-    <tbody>
         <tr>
             <td>basicAuth</td>
             <td><input type=text minlength=1 maxlength=32 placeholder=login data-o=gu></td>
@@ -142,39 +142,31 @@ p={
             <td><input type=number min=1 max=900 data-o=gt></td>
             <td><label><input type=checkbox onclick="this.value=1*this.checked" data-o=gr>auto reboot</label></td>
         </tr>
-    </tbody>
 </table>
 
 <h2>stations<button onclick="s('w')">save</button></h2>
 <table>
-    <thead>
         <tr>
             <td>SSID</td>
             <td>password</td>
             <td></td>
         </tr>
-    </thead>
     <tbody id=w>
-    </tbody>
 </table>
 
 <h2>devices<button onclick="s('d')">save</button></h2>
 <table>
-    <thead>
         <tr>
             <td>id</td>
             <td>name</td>
             <td>MAC</td>
             <td></td>
         </tr>
-    </thead>
     <tbody id=d>
-    </tbody>
 </table>
 
 <h2>rules<button onclick="s('r')">save</button></h2>
 <table>
-    <thead>
         <tr>
             <td>name</td>
             <td>pin</td>
@@ -183,14 +175,11 @@ p={
             <td>direction</td>
             <td></td>
         </tr>
-    </thead>
     <tbody id=r>
-    </tbody>
 </table>
 
 <h2>transport<button onclick="s('t')">save</button></h2>
 <table>
-    <tbody>
         <tr>
             <td>method</td>
             <td><input type=text minlength=1 maxlength=8 data-o=tm></td>
@@ -203,5 +192,4 @@ p={
             <td>payload</td>
             <td><input type=text minlength=1 maxlength=63 data-o=tp></td>
         </tr>
-    </tbody>
 </table>
