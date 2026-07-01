@@ -65,7 +65,9 @@ const std::list<Configuration::WifiStation> Configuration::getWifiStationList() 
 {
   std::list<Configuration::WifiStation> wifiStationList;
   if (_fs->exists(WS_CONFIG_WIFI_PATH)) {
-    JsonArray root = this->_open(WS_CONFIG_WIFI_PATH)->as<JsonArray>();
+    DynamicJsonDocument doc(WS_CONFIG_BUFFER_SIZE);
+    this->_open(WS_CONFIG_WIFI_PATH, doc);
+    JsonArray root = doc.as<JsonArray>();
     
     for (JsonObject o : root) {
       Configuration::WifiStation wifi {
@@ -85,12 +87,14 @@ const std::list<Configuration::Device> Configuration::getDeviceList() const
 {
   std::list<Configuration::Device> deviceList;
   if (_fs->exists(WS_CONFIG_DEVICE_PATH)) {
-    JsonArray root = this->_open(WS_CONFIG_DEVICE_PATH)->as<JsonArray>();
+    DynamicJsonDocument doc(WS_CONFIG_BUFFER_SIZE);
+    this->_open(WS_CONFIG_DEVICE_PATH, doc);
+    JsonArray root = doc.as<JsonArray>();
 
     for (JsonObject o : root) {
       Configuration::Device device {
         .id = o["i"].as<uint8_t>(),
-        .mac = new char[strlen(o["m"])],
+        .mac = new char[strlen(o["m"]) + 1],
         .name = o["n"].as<String>(),
         .cmac = new uint8_t[6],
       };
@@ -126,7 +130,9 @@ const std::list<Configuration::Rule> Configuration::getRuleList() const
 {
   std::list<Configuration::Rule> ruleList;
   if (_fs->exists(WS_CONFIG_RULE_PATH)) {
-    JsonArray root = this->_open(WS_CONFIG_RULE_PATH)->as<JsonArray>();
+    DynamicJsonDocument doc(WS_CONFIG_BUFFER_SIZE);
+    this->_open(WS_CONFIG_RULE_PATH, doc);
+    JsonArray root = doc.as<JsonArray>();
 
     for (JsonObject o : root) {
       Configuration::Rule rule {
@@ -146,7 +152,9 @@ const std::list<Configuration::Rule> Configuration::getRuleList() const
 
 const Configuration::Transport Configuration::getTransport() const
 {
-  JsonObject root = this->_open(WS_CONFIG_TRANSPORT_PATH)->as<JsonObject>();
+  DynamicJsonDocument doc(WS_CONFIG_BUFFER_SIZE);
+  this->_open(WS_CONFIG_TRANSPORT_PATH, doc);
+  JsonObject root = doc.as<JsonObject>();
   
   Configuration::Transport t {
     .uri = root["u"].as<String>(),
@@ -166,31 +174,20 @@ const Configuration::Transport Configuration::getTransport() const
 
 
 
-JsonDocument* Configuration::_open(const char* filename) const
+void Configuration::_open(const char* filename, JsonDocument& doc) const
 {
   File file = _fs->open(filename, "r"); // "w+"
-  DynamicJsonDocument* doc = new DynamicJsonDocument(WS_CONFIG_BUFFER_SIZE);
-  deserializeJson(*doc, file, DeserializationOption::NestingLimit(2));
-  //ReadBufferingStream bufferingStream(file, 64);
-  //DeserializationError error = deserializeMsgPack(doc, bufferingStream, DeserializationOption::NestingLimit(2));
+  deserializeJson(doc, file, DeserializationOption::NestingLimit(2));
   file.close();
-  doc->shrinkToFit();
-
-  /*
-  if (error) {
-    Serial.print("deserializeMsgPack() failed: ");
-    Serial.println(error.f_str());
-    return;
-  }
-  */
-
-  return doc;
+  doc.shrinkToFit();
 }
 
 
 void Configuration::_loadGlobal()
 {
-  JsonObject root = this->_open(WS_CONFIG_GLOBAL_PATH)->as<JsonObject>();
+  DynamicJsonDocument doc(WS_CONFIG_BUFFER_SIZE);
+  this->_open(WS_CONFIG_GLOBAL_PATH, doc);
+  JsonObject root = doc.as<JsonObject>();
   
   Configuration::Global g {
     .acl = {

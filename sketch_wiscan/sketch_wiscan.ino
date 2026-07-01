@@ -29,7 +29,7 @@
 #include "macro.h"
 #include "certificate-generated.h"
 #include "Configuration.h"
-#include "Fasttimer.h"
+#include <FastTimer.hpp>
 #include "WebServer.h"
 #include "RpnSolver.h"
 #include "FriendDetector/esppl_functions.h"
@@ -42,7 +42,7 @@
 
 
 Configuration* configuration;
-FastTimer* fastTimer;
+FastTimer<FastTimerPrecision::P_1s_4m> fastTimer;
 RpnSolver* rpnSolver;
 std::list<Configuration::Rule> ruleList;
 std::list<Configuration::Device> deviceList;
@@ -61,6 +61,8 @@ void setup()
   LOG_START();
   WAIT(1000);
   LOGLN(F("DEBUG ON"));
+
+  WiFi.persistent(false); // creds are managed via LittleFS; avoid rewriting the RF-param flash sectors on each begin()/softAP()/mode()
 
   LOG("reset reason: "); LOGLN(ESP.getResetReason());
   
@@ -175,7 +177,6 @@ void setup()
 
   LOGLN(F("-- init features"));
   esppl_init(parseFrame);
-  fastTimer = new FastTimer(FastTimer::P_1s_4m);
   rpnSolver = new RpnSolver();
   rpnSolver->addMapper(hasDetectedDeviceById);
   LOGLN(F("---"));
@@ -200,7 +201,7 @@ void startWiFi(void)
     std::list<Configuration::WifiStation> wifiList = configuration->getWifiStationList();
     for (Configuration::WifiStation wifi : wifiList) {
       LOGLN(wifi.ssid);
-      wifiMulti.addAP(wifi.ssid.c_str() + '\0', wifi.password.c_str() + '\0');
+      wifiMulti.addAP(wifi.ssid.c_str(), wifi.password.c_str());
     }
 
     if (wifiMulti.run(WS_WIFI_CONNEXION_TIMEOUT_MS) == WL_CONNECTED) {
@@ -300,11 +301,11 @@ void countdownDetectedDevices() {
 
   for (Configuration::Device device : deviceList) {
     if (countdownDetectedDeviceList[index] > 0) {
+      countdownDetectedDeviceList[index] = countdownDetectedDeviceList[index] - 1;
+
       if (countdownDetectedDeviceList[index] == 0) {
         LOG(device.name); LOGLN(" has left");
       }
-
-      countdownDetectedDeviceList[index] = countdownDetectedDeviceList[index] - 1;
     }
 
     ++index;
@@ -349,9 +350,14 @@ const bool hasUpdatedResults() {
 
 void loop()
 {
-  if (fastTimer->update()) {
+  fastTimer.update();
+
+  if (fastTimer.isTick()) {
     BUSYLED_OFF;
-    LOGF("[HW] Free heap: %d bytes\n", ESP.getFreeHeap());
+
+    if (fastTimer.isTickBy16()) { // ~16s: periodic heap diagnostic, no need to log it every second
+      LOGF("[HW] Free heap: %d bytes\n", ESP.getFreeHeap());
+    }
 
     if (countdown_s > 0) {
       --countdown_s;
@@ -390,9 +396,6 @@ void loop()
       client->setInsecure();
 
       HTTPClient https;
-
-      char* method = new char[transport.method.length() + 1];
-      strcpy(method, transport.method.c_str());
       /* ------------------ */
 
       uint8_t index = 0;
@@ -422,7 +425,7 @@ void loop()
             LOGLN(payload);
 
             if (https.begin(*client, uri)) {
-              int httpCode = https.sendRequest(method, payload);
+              int httpCode = https.sendRequest(transport.method.c_str(), payload);
               LOGLN(httpCode);
 
               ackRuleList[index] = httpCode == HTTP_CODE_OK;

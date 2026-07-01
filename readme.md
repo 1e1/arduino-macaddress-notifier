@@ -1,5 +1,7 @@
 # 📡 WiCheck
 
+[![CI](https://github.com/1e1/arduino-macaddress-notifier/actions/workflows/ci.yml/badge.svg)](https://github.com/1e1/arduino-macaddress-notifier/actions/workflows/ci.yml)
+
 Scan device around, then notify a server and/or flag a pin.
 
 ## First start
@@ -48,7 +50,7 @@ List your friendly devices (even if there are not connected or not on a friendly
 
 - id: keep it unique, there were a reference into the rules
 - name: any name for humans
-- MAC: stalked MAC address, must use the pattern `aa:aa:aa:aa:aa:aa:aa`
+- MAC: stalked MAC address, must use the pattern `aa:aa:aa:aa:aa:aa`
 
 When you add a Device, first click on `+` then on the `save` button. 
 
@@ -105,6 +107,8 @@ Operators:
 | `>`  	| more than      	| `left right >`       	| boolean	| `7 1 >`            	| `1`       	|
 | `?`  	| if then else   	| `then else if ?`     	| integer	| `7 3 1 ?`  `8 4 0 ?` 	| `7`  `4`  	|
 | `!`  	| not            	| `n !`                	| boolean	| `0 !`              	| `1`       	|
+
+NB: a division by zero (e.g. `12 0 /`) is guarded and returns `0`.
 
 ### Examples
 
