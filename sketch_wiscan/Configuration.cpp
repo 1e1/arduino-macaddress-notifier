@@ -61,14 +61,15 @@ void Configuration::setSafeMode(const bool isSafeMode)
 }
 
 
-const std::list<Configuration::WifiStation> Configuration::getWifiStationList() const
+std::vector<Configuration::WifiStation> Configuration::getWifiStationList() const
 {
-  std::list<Configuration::WifiStation> wifiStationList;
+  std::vector<Configuration::WifiStation> wifiStationList;
   if (_fs->exists(WS_CONFIG_WIFI_PATH)) {
     DynamicJsonDocument doc(WS_CONFIG_BUFFER_SIZE);
     this->_open(WS_CONFIG_WIFI_PATH, doc);
     JsonArray root = doc.as<JsonArray>();
-    
+    wifiStationList.reserve(root.size());
+
     for (JsonObject o : root) {
       Configuration::WifiStation wifi {
         .ssid = o["n"].as<String>(),
@@ -83,13 +84,14 @@ const std::list<Configuration::WifiStation> Configuration::getWifiStationList() 
 }
 
 
-const std::list<Configuration::Device> Configuration::getDeviceList() const
+std::vector<Configuration::Device> Configuration::getDeviceList() const
 {
-  std::list<Configuration::Device> deviceList;
+  std::vector<Configuration::Device> deviceList;
   if (_fs->exists(WS_CONFIG_DEVICE_PATH)) {
     DynamicJsonDocument doc(WS_CONFIG_BUFFER_SIZE);
     this->_open(WS_CONFIG_DEVICE_PATH, doc);
     JsonArray root = doc.as<JsonArray>();
+    deviceList.reserve(root.size());
 
     for (JsonObject o : root) {
       Configuration::Device device {
@@ -126,13 +128,14 @@ const std::list<Configuration::Device> Configuration::getDeviceList() const
 }
 
 
-const std::list<Configuration::Rule> Configuration::getRuleList() const
+std::vector<Configuration::Rule> Configuration::getRuleList() const
 {
-  std::list<Configuration::Rule> ruleList;
+  std::vector<Configuration::Rule> ruleList;
   if (_fs->exists(WS_CONFIG_RULE_PATH)) {
     DynamicJsonDocument doc(WS_CONFIG_BUFFER_SIZE);
     this->_open(WS_CONFIG_RULE_PATH, doc);
     JsonArray root = doc.as<JsonArray>();
+    ruleList.reserve(root.size());
 
     for (JsonObject o : root) {
       Configuration::Rule rule {
@@ -150,7 +153,7 @@ const std::list<Configuration::Rule> Configuration::getRuleList() const
 }
 
 
-const Configuration::Transport Configuration::getTransport() const
+Configuration::Transport Configuration::getTransport() const
 {
   DynamicJsonDocument doc(WS_CONFIG_BUFFER_SIZE);
   this->_open(WS_CONFIG_TRANSPORT_PATH, doc);
