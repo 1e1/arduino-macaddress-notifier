@@ -194,7 +194,7 @@ void RpnSolver::_compute2(char operand)
       break;
 
     case '/':
-      this->_push(a / b);
+      this->_push(b != 0 ? a / b : 0);
       break;
 
     case '<':

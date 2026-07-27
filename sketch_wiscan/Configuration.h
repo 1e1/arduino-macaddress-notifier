@@ -7,7 +7,7 @@
 #include <ArduinoJson.h>
 #include <FS.h>
 #include <limits.h>
-#include <list>
+#include <vector>
 // #include <netinet/ether.h>
 #include "config.h"
 #include "macro.h"
@@ -69,16 +69,16 @@ class Configuration {
   void begin(void);
   void setSafeMode(const bool isSafeMode=true);
   Global* getGlobal(void) { return &this->_global; };
-  const std::list<WifiStation> getWifiStationList(void) const;
-  const std::list<Device> getDeviceList(void) const;
-  const std::list<Rule> getRuleList(void) const;
-  const Transport getTransport(void) const;
+  std::vector<WifiStation> getWifiStationList(void) const;
+  std::vector<Device> getDeviceList(void) const;
+  std::vector<Rule> getRuleList(void) const;
+  Transport getTransport(void) const;
 
   protected:
   fs::FS* _fs = nullptr;
   Global _global;
 
-  JsonDocument* _open(const char* filename) const;
+  void _open(const char* filename, JsonDocument& doc) const;
   void _loadGlobal(void);
 
 };

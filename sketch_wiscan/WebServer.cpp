@@ -206,7 +206,7 @@ void WebServer::_streamJson(const char* path, const char* defaultValue) const
 {
   if (this->_isAllowed()) {
     if (!this->_fs->exists(path)) {
-      this->_server->send(200, FPSTR(TEXT_JSON), defaultValue);
+      return this->_server->send(200, FPSTR(TEXT_JSON), defaultValue);
     }
 
     File file = this->_fs->open(path, "r");

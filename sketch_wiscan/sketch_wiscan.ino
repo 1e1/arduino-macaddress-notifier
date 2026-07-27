@@ -29,10 +29,10 @@
 #include "macro.h"
 #include "certificate-generated.h"
 #include "Configuration.h"
-#include "Fasttimer.h"
+#include <FastTimer.hpp>
 #include "WebServer.h"
 #include "RpnSolver.h"
-#include "FriendDetector/esppl_functions.h"
+#include <WiStalker.hpp>
 
 
 
@@ -42,10 +42,10 @@
 
 
 Configuration* configuration;
-FastTimer* fastTimer;
+FastTimer<FastTimerPrecision::P_1s_4m> fastTimer;
 RpnSolver* rpnSolver;
-std::list<Configuration::Rule> ruleList;
-std::list<Configuration::Device> deviceList;
+std::vector<Configuration::Rule> ruleList;
+std::vector<Configuration::Device> deviceList;
 Configuration::Transport transport;
 
 uint8_t* countdownDetectedDeviceList;
@@ -61,6 +61,8 @@ void setup()
   LOG_START();
   WAIT(1000);
   LOGLN(F("DEBUG ON"));
+
+  WiFi.persistent(false); // creds are managed via LittleFS; avoid rewriting the RF-param flash sectors on each begin()/softAP()/mode()
 
   LOG("reset reason: "); LOGLN(ESP.getResetReason());
   
@@ -153,14 +155,14 @@ void setup()
 
   LOGLN(F("-- init pins"));
   index = 0;
-  for (Configuration::Device device : deviceList) {
+  for (const Configuration::Device& device : deviceList) {
     countdownDetectedDeviceList[index] = 0;
     ++index;
   }
   LOG(F("nbDevices=")); LOGLN(index);
 
   index = 0;
-  for (Configuration::Rule rule : ruleList) {
+  for (const Configuration::Rule& rule : ruleList) {
     // WARNING check: https://github.com/esp8266/Arduino/blob/74819a763bfb6e9890a57411dcea4aba221a778d/variants/d1_mini/pins_arduino.h
     if (rule.pin != WS_RULE_PIN_NONE) {
       pinMode(rule.pin, OUTPUT);
@@ -174,13 +176,12 @@ void setup()
   LOGLN(F("---"));
 
   LOGLN(F("-- init features"));
-  esppl_init(parseFrame);
-  fastTimer = new FastTimer(FastTimer::P_1s_4m);
+  WiStalker::begin(parseFrame);
   rpnSolver = new RpnSolver();
   rpnSolver->addMapper(hasDetectedDeviceById);
   LOGLN(F("---"));
 
-  esppl_sniffing_start();
+  WiStalker::start();
 
   BUSYLED_OFF;
 }
@@ -197,10 +198,10 @@ void startWiFi(void)
     WiFi.setPhyMode(WS_WIFI_STA_PHY_MODE);
 
     ESP8266WiFiMulti wifiMulti;
-    std::list<Configuration::WifiStation> wifiList = configuration->getWifiStationList();
-    for (Configuration::WifiStation wifi : wifiList) {
+    std::vector<Configuration::WifiStation> wifiList = configuration->getWifiStationList();
+    for (const Configuration::WifiStation& wifi : wifiList) {
       LOGLN(wifi.ssid);
-      wifiMulti.addAP(wifi.ssid.c_str() + '\0', wifi.password.c_str() + '\0');
+      wifiMulti.addAP(wifi.ssid.c_str(), wifi.password.c_str());
     }
 
     if (wifiMulti.run(WS_WIFI_CONNEXION_TIMEOUT_MS) == WL_CONNECTED) {
@@ -244,7 +245,7 @@ void startWiFi(void)
 int hasDetectedDeviceById(int id) {
   int index = 0;
 
-  for (Configuration::Device device : deviceList) {
+  for (const Configuration::Device& device : deviceList) {
     if (id == device.id) {
       return (int) (countdownDetectedDeviceList[index] > 0);
     }
@@ -256,8 +257,8 @@ int hasDetectedDeviceById(int id) {
 }
 
 
-bool maccmp(uint8_t *mac1, uint8_t *mac2) {
-  for (int i=0; i < ESPPL_MAC_LEN; i++) {
+bool maccmp(const uint8_t *mac1, const uint8_t *mac2) {
+  for (uint8_t i = 0; i < WiStalker::MAC_LEN; i++) {
     if (mac1[i] != mac2[i]) {
       return false;
     }
@@ -266,11 +267,11 @@ bool maccmp(uint8_t *mac1, uint8_t *mac2) {
 }
 
 
-void parseFrame(esppl_frame_info *info) {
+void parseFrame(void*, const WiStalker::Frame& frame) {
   int index = 0;
 
-  for (Configuration::Device device : deviceList) {
-    if (maccmp(info->sourceaddr, device.cmac) || maccmp(info->receiveraddr, device.cmac)) {
+  for (const Configuration::Device& device : deviceList) {
+    if (maccmp(frame.rx, device.cmac) || (frame.tx && maccmp(frame.tx, device.cmac))) {
       if (countdownDetectedDeviceList[index] == 0) {
         LOG(device.name); LOGLN(" detected");
       }
@@ -284,13 +285,9 @@ void parseFrame(esppl_frame_info *info) {
 
 
 void scanWifi() {
-  for (int i = ESPPL_CHANNEL_MIN; i <= ESPPL_CHANNEL_MAX; i++ ) {
-    esppl_set_channel(i);
-    for (uint8_t loopi=0; loopi<5; loopi++) {
-      while (esppl_process_frames()) {
-        //
-      }
-    }
+  for (uint8_t ch = WiStalker::CHANNEL_MIN; ch <= WiStalker::CHANNEL_MAX; ch++) {
+    WiStalker::setChannel(ch);
+    WiStalker::dwell(50);   // listen ~50 ms per channel; frames arrive via parseFrame()
   }
 }
 
@@ -298,13 +295,13 @@ void scanWifi() {
 void countdownDetectedDevices() {
   uint8_t index = 0;
 
-  for (Configuration::Device device : deviceList) {
+  for (const Configuration::Device& device : deviceList) {
     if (countdownDetectedDeviceList[index] > 0) {
+      countdownDetectedDeviceList[index] = countdownDetectedDeviceList[index] - 1;
+
       if (countdownDetectedDeviceList[index] == 0) {
         LOG(device.name); LOGLN(" has left");
       }
-
-      countdownDetectedDeviceList[index] = countdownDetectedDeviceList[index] - 1;
     }
 
     ++index;
@@ -316,7 +313,7 @@ const bool hasUpdatedResults() {
   bool hasUpdate = false;
   uint8_t index = 0;
 
-  for (Configuration::Rule rule : ruleList) {
+  for (const Configuration::Rule& rule : ruleList) {
     const int value = rpnSolver->resolve(rule.equation);
     
     if (value != previousValueRuleList[index]) {
@@ -349,9 +346,17 @@ const bool hasUpdatedResults() {
 
 void loop()
 {
-  if (fastTimer->update()) {
+  fastTimer.update();
+
+  if (fastTimer.isTick()) {
     BUSYLED_OFF;
-    LOGF("[HW] Free heap: %d bytes\n", ESP.getFreeHeap());
+
+    if (fastTimer.isTickBy16()) { // ~16s: periodic heap diagnostic, no need to log it every second
+      // free heap alone hides fragmentation; the largest contiguous block and the
+      // fragmentation ratio are what reveal String-churn degradation over time
+      LOGF("[HW] Free heap: %d bytes, max block: %d bytes, fragmentation: %d%%\n",
+        ESP.getFreeHeap(), ESP.getMaxFreeBlockSize(), ESP.getHeapFragmentation());
+    }
 
     if (countdown_s > 0) {
       --countdown_s;
@@ -367,7 +372,7 @@ void loop()
 
     if (transport.uri.length() == 0) {
       uint8_t index = 0;
-      for (Configuration::Rule rule : ruleList) {
+      for (const Configuration::Rule& rule : ruleList) {
         if (!ackRuleList[index]) {
           if (rule.pin != WS_RULE_PIN_NONE) {
             digitalWrite(rule.pin, previousValueRuleList[index]>0 ? HIGH : LOW);
@@ -380,8 +385,7 @@ void loop()
       }
     } else {
       /* prepare HTTPClient */
-      esppl_sniffing_stop();
-      wifi_promiscuous_enable(false);
+      WiStalker::end();
 
       startWiFi();
       BUSYLED_ON;
@@ -390,13 +394,10 @@ void loop()
       client->setInsecure();
 
       HTTPClient https;
-
-      char* method = new char[transport.method.length() + 1];
-      strcpy(method, transport.method.c_str());
       /* ------------------ */
 
       uint8_t index = 0;
-      for (Configuration::Rule rule : ruleList) {
+      for (const Configuration::Rule& rule : ruleList) {
         if (!ackRuleList[index]) {
           if (rule.pin != WS_RULE_PIN_NONE) {
             digitalWrite(rule.pin, previousValueRuleList[index]>0 ? HIGH : LOW);
@@ -422,7 +423,7 @@ void loop()
             LOGLN(payload);
 
             if (https.begin(*client, uri)) {
-              int httpCode = https.sendRequest(method, payload);
+              int httpCode = https.sendRequest(transport.method.c_str(), payload);
               LOGLN(httpCode);
 
               ackRuleList[index] = httpCode == HTTP_CODE_OK;
@@ -434,8 +435,8 @@ void loop()
         ++index;
       }
 
-      esppl_init(parseFrame);
-      esppl_sniffing_start();
+      WiStalker::begin(parseFrame);
+      WiStalker::start();
     }
   } 
 }

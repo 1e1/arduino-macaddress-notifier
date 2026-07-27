@@ -1,6 +1,40 @@
 # 📡 WiCheck
 
+[![CI](https://github.com/1e1/arduino-macaddress-notifier/actions/workflows/ci.yml/badge.svg)](https://github.com/1e1/arduino-macaddress-notifier/actions/workflows/ci.yml)
+
 Scan device around, then notify a server and/or flag a pin.
+
+## Build
+
+The sketch lives in [`sketch_wiscan/`](./sketch_wiscan) and targets the ESP8266
+(tested on a Wemos/LOLIN D1 mini). Presence detection is done by
+[WiStalker](https://github.com/1e1/arduino-macaddress-detector) — passive 802.11
+sniffing, available from the Arduino Library Manager since `1.0.0`.
+
+Install the toolchain and libraries, then compile & upload — versions match the
+CI toolchain:
+
+```sh
+# ESP8266 core
+arduino-cli core update-index --additional-urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
+arduino-cli core install esp8266:esp8266@3.1.2 --additional-urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
+
+# libraries (from the Arduino Library Manager)
+arduino-cli lib install ArduinoJson@7.4.3
+arduino-cli lib install WiStalker@1.0.0
+
+# FastTimer 3.1.0 is not on the Library Manager index yet: install the git tag
+arduino-cli config set library.enable_unsafe_install true
+arduino-cli lib install --git-url https://github.com/1e1/Arduino-FastTimer.git#3.1.0
+
+# compile & upload
+arduino-cli compile --fqbn esp8266:esp8266:d1_mini sketch_wiscan
+arduino-cli upload  --fqbn esp8266:esp8266:d1_mini -p /dev/ttyUSB0 sketch_wiscan
+```
+
+In the Arduino IDE, install `ArduinoJson` and `WiStalker` from the Library
+Manager; add [FastTimer](https://github.com/1e1/Arduino-FastTimer) `3.1.0` from
+its git tag (`.zip`) until it lands on the index.
 
 ## First start
 
@@ -48,7 +82,7 @@ List your friendly devices (even if there are not connected or not on a friendly
 
 - id: keep it unique, there were a reference into the rules
 - name: any name for humans
-- MAC: stalked MAC address, must use the pattern `aa:aa:aa:aa:aa:aa:aa`
+- MAC: stalked MAC address, must use the pattern `aa:aa:aa:aa:aa:aa`
 
 When you add a Device, first click on `+` then on the `save` button. 
 
@@ -105,6 +139,8 @@ Operators:
 | `>`  	| more than      	| `left right >`       	| boolean	| `7 1 >`            	| `1`       	|
 | `?`  	| if then else   	| `then else if ?`     	| integer	| `7 3 1 ?`  `8 4 0 ?` 	| `7`  `4`  	|
 | `!`  	| not            	| `n !`                	| boolean	| `0 !`              	| `1`       	|
+
+NB: a division by zero (e.g. `12 0 /`) is guarded and returns `0`.
 
 ### Examples
 
